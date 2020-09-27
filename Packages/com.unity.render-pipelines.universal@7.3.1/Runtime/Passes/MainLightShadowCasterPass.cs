@@ -16,10 +16,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             public static int _CascadeShadowSplitSpheres2;
             public static int _CascadeShadowSplitSpheres3;
             public static int _CascadeShadowSplitSphereRadii;
-            public static int _ShadowOffset0;
-            public static int _ShadowOffset1;
-            public static int _ShadowOffset2;
-            public static int _ShadowOffset3;
+            public static int _InvHalfShadowAtlasWidthHeight;
             public static int _ShadowmapSize;
         }
 
@@ -55,10 +52,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             MainLightShadowConstantBuffer._CascadeShadowSplitSpheres2 = Shader.PropertyToID("_CascadeShadowSplitSpheres2");
             MainLightShadowConstantBuffer._CascadeShadowSplitSpheres3 = Shader.PropertyToID("_CascadeShadowSplitSpheres3");
             MainLightShadowConstantBuffer._CascadeShadowSplitSphereRadii = Shader.PropertyToID("_CascadeShadowSplitSphereRadii");
-            MainLightShadowConstantBuffer._ShadowOffset0 = Shader.PropertyToID("_MainLightShadowOffset0");
-            MainLightShadowConstantBuffer._ShadowOffset1 = Shader.PropertyToID("_MainLightShadowOffset1");
-            MainLightShadowConstantBuffer._ShadowOffset2 = Shader.PropertyToID("_MainLightShadowOffset2");
-            MainLightShadowConstantBuffer._ShadowOffset3 = Shader.PropertyToID("_MainLightShadowOffset3");
+            MainLightShadowConstantBuffer._InvHalfShadowAtlasWidthHeight = Shader.PropertyToID("_InvHalfShadowAtlasWidthHeight");
             MainLightShadowConstantBuffer._ShadowmapSize = Shader.PropertyToID("_MainLightShadowmapSize");
 
             m_MainLightShadowmap.Init("_MainLightShadowmapTexture");
@@ -232,20 +226,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             if (softShadows)
             {
-                if (m_SupportsBoxFilterForShadows)
-                {
-                    cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowOffset0,
-                        new Vector4(-invHalfShadowAtlasWidth, -invHalfShadowAtlasHeight, 0.0f, 0.0f));
-                    cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowOffset1,
-                        new Vector4(invHalfShadowAtlasWidth, -invHalfShadowAtlasHeight, 0.0f, 0.0f));
-                    cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowOffset2,
-                        new Vector4(-invHalfShadowAtlasWidth, invHalfShadowAtlasHeight, 0.0f, 0.0f));
-                    cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowOffset3,
-                        new Vector4(invHalfShadowAtlasWidth, invHalfShadowAtlasHeight, 0.0f, 0.0f));
-                }
-
-                // Currently only used when !SHADER_API_MOBILE but risky to not set them as it's generic
-                // enough so custom shaders might use it.
+                cmd.SetGlobalVector(MainLightShadowConstantBuffer._InvHalfShadowAtlasWidthHeight, new Vector4(invHalfShadowAtlasWidth, invHalfShadowAtlasHeight, 0.0f, 0.0f));
                 cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowmapSize, new Vector4(invShadowAtlasWidth,
                     invShadowAtlasHeight,
                     m_ShadowmapWidth, m_ShadowmapHeight));

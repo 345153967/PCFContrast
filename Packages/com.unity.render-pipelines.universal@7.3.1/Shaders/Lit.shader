@@ -115,6 +115,10 @@ Shader "Universal Render Pipeline/Lit"
             // GPU Instancing
             #pragma multi_compile_instancing
 
+            //define pcf test
+            #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF
+            #pragma multi_compile _UE4Manual3x3PCF_Gather
+
             #pragma vertex LitPassVertex
             #pragma fragment LitPassFragment
 
