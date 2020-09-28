@@ -98,6 +98,7 @@
     <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\Nature\SpeedTree7CommonPasses.hlsl" />
     <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\Terrain\WavingGrass.shader" />
     <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\Nature\SpeedTree8Passes.hlsl" />
+    <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\Unlit 1.shader" />
     <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\BakedLitInput.hlsl" />
     <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\Utils\CopyDepth.shader" />
     <None Include="Packages\com.unity.render-pipelines.universal@7.3.1\Shaders\Utils\FallbackError.shader" />

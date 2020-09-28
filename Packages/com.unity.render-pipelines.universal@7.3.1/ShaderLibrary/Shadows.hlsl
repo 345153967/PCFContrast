@@ -7,7 +7,7 @@
 
 
 //For PCF Functions Contrast
-#if defined(_UE4Manual2x2PCF) ||defined(_UE4Manual3x3PCF)
+#if defined(_UE4Manual2x2PCF) || defined(_UE4Manual3x3PCF)
 #define PCFSAMPLER(samplerName) SAMPLER(samplerName)
 #else
 #define PCFSAMPLER(samplerName) SAMPLER_CMP(samplerName)
@@ -219,7 +219,8 @@ real UE4Manual2x2PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 	real3 SamplesValues0 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
 	real3 SamplesValues1 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
 	real3 SamplesValues2 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
-
+	//return 1 - (SamplesValues0.x + SamplesValues0.y + SamplesValues0.z + SamplesValues1.x + SamplesValues1.y + SamplesValues1.z + SamplesValues2.x + SamplesValues2.y + SamplesValues2.z) / 9.0f;
+	//return 1 - SamplesValues0.x;
 	real3 results;
 	results.x = SamplesValues0.x * (1 - Fraction.x) + SamplesValues0.y + SamplesValues1.z * Fraction.x;
 	results.y = SamplesValues1.x * (1 - Fraction.x) + SamplesValues1.y + SamplesValues1.z * Fraction.x;
@@ -233,55 +234,54 @@ real UE4Manual3x3PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 	real2 TexelPos = shadowCoord.xy * samplingData.shadowmapSize.zw - 0.5f;	// bias to be consistent with texture filtering hardware
 	real2 Fraction = frac(TexelPos);
 	real2 TexelCenter = floor(TexelPos) + 0.5f;	// bias to get reliable texel center content
-	{
-		real2 SampleCenter = TexelCenter - real2(1, 1);
+	real2 SampleCenter = TexelCenter - real2(1, 1);
 
-		real4 SampleValues0, SampleValues1, SampleValues2, SampleValues3;
+	real4 SampleValues0, SampleValues1, SampleValues2, SampleValues3;
 
-	#if defined(FEATURE_GATHER4)
-		real2 SamplePos = TexelCenter * Settings.ShadowBufferSize.zw;	// bias to get reliable texel center content
-		real4 SampleValues0 = CalculateOcclusion(ShadowDepthTexture.Gather(sampler_ShadowMap, SamplePos, int2(-1, -1)), shadowCoord.z);
-		real4 SampleValues1 = CalculateOcclusion(ShadowDepthTexture.Gather(sampler_ShadowMap, SamplePos, int2(1, -1)),  shadowCoord.z);
-		real4 SampleValues2 = CalculateOcclusion(ShadowDepthTexture.Gather(sampler_ShadowMap, SamplePos, int2(-1, 1)),  shadowCoord.z);
-		real4 SampleValues3 = CalculateOcclusion(ShadowDepthTexture.Gather(sampler_ShadowMap, SamplePos, int2(1, 1)),   shadowCoord.z);
+#if defined(_FEATURE_GATHER4)
+		real2 SamplePos = TexelCenter * samplingData.shadowmapSize.xy;	// bias to get reliable texel center content
+		SampleValues0 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, -1)), shadowCoord.z);
+		SampleValues1 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, -1)), shadowCoord.z);
+		SampleValues2 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, 1)), shadowCoord.z);
+		SampleValues3 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, 1)), shadowCoord.z);
 
 		real4 results;
 		results.x = SampleValues0.w * (1.0 - Fraction.x) + SampleValues0.z + SampleValues1.w + SampleValues1.z * Fraction.x;
 		results.y = SampleValues0.x * (1.0 - Fraction.x) + SampleValues0.y + SampleValues1.x + SampleValues1.y * Fraction.x;
 		results.z = SampleValues2.w * (1.0 - Fraction.x) + SampleValues2.z + SampleValues3.w + SampleValues3.z * Fraction.x;
 		results.w = SampleValues2.x * (1.0 - Fraction.x) + SampleValues2.y + SampleValues3.x + SampleValues3.y * Fraction.x;
-		return dot(results, real4(1.0 - Fraction.y), 1.0, 1.0, Fraction.y) * (1.0 / 9.0);
-
-	#else
-		real4 samplesValues0 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
-		real4 samplesValues1 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
-		real4 samplesValues2 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
-		real4 samplesValues3 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 3, samplingData, shadowCoord.z);
+		return 1 - dot(results, real4(1.0 - Fraction.y, 1.0, 1.0, Fraction.y) * (1.0 / 9.0));
+#else
+		SampleValues0 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
+		SampleValues1 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
+		SampleValues2 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
+		SampleValues3 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 3, samplingData, shadowCoord.z);
 
 		real4 results;
-		results.x = samplesValues0.x * (1.0f - Fraction.x) + samplesValues0.y + samplesValues0.z + samplesValues0.w * Fraction.x;
-		results.y = samplesValues1.x * (1.0f - Fraction.x) + samplesValues1.y + samplesValues1.z + samplesValues1.w * Fraction.x;
-		results.z = samplesValues2.x * (1.0f - Fraction.x) + samplesValues2.y + samplesValues2.z + samplesValues2.w * Fraction.x;
-		results.w = samplesValues3.x * (1.0f - Fraction.x) + samplesValues3.y + samplesValues3.z + samplesValues3.w * Fraction.x;
+		results.x = SampleValues0.x * (1.0f - Fraction.x) + SampleValues0.y + SampleValues0.z + SampleValues0.w * Fraction.x;
+		results.y = SampleValues1.x * (1.0f - Fraction.x) + SampleValues1.y + SampleValues1.z + SampleValues1.w * Fraction.x;
+		results.z = SampleValues2.x * (1.0f - Fraction.x) + SampleValues2.y + SampleValues2.z + SampleValues2.w * Fraction.x;
+		results.w = SampleValues3.x * (1.0f - Fraction.x) + SampleValues3.y + SampleValues3.z + SampleValues3.w * Fraction.x;
+		//return 1 - (SampleValues0.x + SampleValues0.y + SampleValues0.z + SampleValues0.w + SampleValues1.x + SampleValues1.y + SampleValues1.z + SampleValues1.w + SampleValues2.x + SampleValues2.y + SampleValues2.z + SampleValues2.w + SampleValues3.x + SampleValues3.y + SampleValues3.z + SampleValues3.w) / 16.0f;
 		return 1 - saturate(dot(results, real4(1.0f - Fraction.y, 1.0f, 1.0f, Fraction.y))) * (1.0f / 9.0f);
-	#endif
-	}
+#endif
 }
 
 real DoPCF(TEXTURE2D_SHADOW_PARAM(ShadowMap, sampler_ShadowMap), float4 shadowCoord, ShadowSamplingData samplingData) {
 	real attenuation = 0;
-#if defined(_UnityNotMobilePCF)
-	attenuation = UnityNotMobilePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
-#elif defined(_UnityMobileHardwarePCF)
-	attenuation = dot(UnityMobileHardwarePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData), 0.25);
-#elif defined(_UE4Manual2x2PCF)
-	attenuation = UE4Manual2x2PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
-#elif defined(UE4Manual3x3PCF_NoGather)||defined(UE4Manual3x3PCF_Gather)
-	#if defined(_UE4Manual3x3PCF_Gather)
-		#define FEATURE_GATHER4
+	#if defined(_UnityNotMobilePCF)
+		attenuation = UnityNotMobilePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
+	#elif defined(_UnityMobileHardwarePCF)
+		attenuation = dot(UnityMobileHardwarePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData), 0.25);
+	#elif defined(_UE4Manual2x2PCF)
+		attenuation = UE4Manual2x2PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
+	#elif defined(_UE4Manual3x3PCF)
+		attenuation = UE4Manual3x3PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
+	#elif defined(_FUCK)
+		attenuation = 0;
+	#else
+		attenuation = 10000;
 	#endif
-	attenuation= UE4Manual3x3PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
-#endif
 	return attenuation;
 }
 //pcf test end

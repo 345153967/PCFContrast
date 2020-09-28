@@ -79,7 +79,7 @@ Shader "Universal Render Pipeline/Lit"
             // All shaders must be compiled with HLSLcc and currently only gles is not using HLSLcc by default
             #pragma prefer_hlslcc gles
             #pragma exclude_renderers d3d11_9x
-            #pragma target 2.0
+            #pragma target 4.5
 
             // -------------------------------------
             // Material Keywords
@@ -116,8 +116,17 @@ Shader "Universal Render Pipeline/Lit"
             #pragma multi_compile_instancing
 
             //define pcf test
-            #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF
-            #pragma multi_compile _UE4Manual3x3PCF_Gather
+            #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF _FUCK 
+            //#pragma multi_compile _UnityMobileHardwarePCF _FUCK _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF 
+
+
+            //#pragma multi_compile _ _UnityMobileHardwarePCF 
+            //#pragma multi_compile _ _UnityNotMobilePCF 
+            //#pragma multi_compile _ _UE4Manual2x2PCF 
+            //#pragma multi_compile _ _UE4Manual3x3PCF 
+            //#pragma multi_compile _ _FUCK 
+
+            #pragma multi_compile _ _FEATURE_GATHER4
 
             #pragma vertex LitPassVertex
             #pragma fragment LitPassFragment
