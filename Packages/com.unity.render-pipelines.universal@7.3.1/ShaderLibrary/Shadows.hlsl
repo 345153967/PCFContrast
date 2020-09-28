@@ -143,6 +143,8 @@ half SampleScreenSpaceShadowmap(float4 shadowCoord)
 
 
 //pcf test codes insert as below
+//unity非移动端PCF 9次SampleCmpLevelZero主动采样配合4次硬件pcf  结果为36个样本 
+//#define SAMPLE_TEXTURE2D_SHADOW()  textureName.SampleCmpLevelZero(samplerName, (coord3).xy, (coord3).z)
 real UnityNotMobilePCF(Texture2D ShadowMap, SamplerComparisonState sampler_ShadowMap, real4 shadowCoord, ShadowSamplingData samplingData) {
 	real fetchesWeights[9];
 	real2 fetchesUV[9];
@@ -159,7 +161,7 @@ real UnityNotMobilePCF(Texture2D ShadowMap, SamplerComparisonState sampler_Shado
 	return attenuation;
 }
 
-// 4-tap hardware comparison
+//unity移动端4次SampleCmpLevelZero主动采样配合硬件pcf  结果为16个样本
 real4 UnityMobileHardwarePCF(Texture2D ShadowMap, SamplerComparisonState sampler_ShadowMap, real4 shadowCoord, ShadowSamplingData samplingData) {
 	real4 attenuation4;
 	attenuation4.x = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(-1, -1), shadowCoord.z);
@@ -210,6 +212,7 @@ real4 FetchRowOfFour(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 
 	return CalculateOcclusion(Values, screenDepth);
 }
 
+//UE4 2x2PCF:9次SampleLevel主动采样无硬件pcf配合, 结果为9次样本
 real UE4Manual2x2PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 shadowCoord, ShadowSamplingData samplingData) {
 	real2 TexelPos = shadowCoord.xy * samplingData.shadowmapSize.zw;
 	real2 Fraction = frac(TexelPos);
@@ -219,8 +222,7 @@ real UE4Manual2x2PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 	real3 SamplesValues0 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
 	real3 SamplesValues1 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
 	real3 SamplesValues2 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
-	//return 1 - (SamplesValues0.x + SamplesValues0.y + SamplesValues0.z + SamplesValues1.x + SamplesValues1.y + SamplesValues1.z + SamplesValues2.x + SamplesValues2.y + SamplesValues2.z) / 9.0f;
-	//return 1 - SamplesValues0.x;
+ 
 	real3 results;
 	results.x = SamplesValues0.x * (1 - Fraction.x) + SamplesValues0.y + SamplesValues1.z * Fraction.x;
 	results.y = SamplesValues1.x * (1 - Fraction.x) + SamplesValues1.y + SamplesValues1.z * Fraction.x;
@@ -228,8 +230,10 @@ real UE4Manual2x2PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 	return 1 - saturate(0.25f * dot(results, real3(1.0f - Fraction.y, 1.0f, Fraction.y)));
 }
 
+//UE4 3x3PCF:分为gather与非gather两部分
+//gather: 4次Gather主动采样配合4次硬件PCF, 结果为16次样本
+//no gather: softPCF,主动采样16次, 结果为16次样本
 real UE4Manual3x3PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 shadowCoord, ShadowSamplingData samplingData)
-// medium quality, 4x4 samples, using and not using gather4
 {
 	real2 TexelPos = shadowCoord.xy * samplingData.shadowmapSize.zw - 0.5f;	// bias to be consistent with texture filtering hardware
 	real2 Fraction = frac(TexelPos);
@@ -262,8 +266,7 @@ real UE4Manual3x3PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 		results.y = SampleValues1.x * (1.0f - Fraction.x) + SampleValues1.y + SampleValues1.z + SampleValues1.w * Fraction.x;
 		results.z = SampleValues2.x * (1.0f - Fraction.x) + SampleValues2.y + SampleValues2.z + SampleValues2.w * Fraction.x;
 		results.w = SampleValues3.x * (1.0f - Fraction.x) + SampleValues3.y + SampleValues3.z + SampleValues3.w * Fraction.x;
-		//return 1 - (SampleValues0.x + SampleValues0.y + SampleValues0.z + SampleValues0.w + SampleValues1.x + SampleValues1.y + SampleValues1.z + SampleValues1.w + SampleValues2.x + SampleValues2.y + SampleValues2.z + SampleValues2.w + SampleValues3.x + SampleValues3.y + SampleValues3.z + SampleValues3.w) / 16.0f;
-		return 1 - saturate(dot(results, real4(1.0f - Fraction.y, 1.0f, 1.0f, Fraction.y))) * (1.0f / 9.0f);
+		return 1 - (saturate(dot(results, real4(1.0f - Fraction.y, 1.0f, 1.0f, Fraction.y))* (1.0f / 9.0f)));
 #endif
 }
 
@@ -341,15 +344,15 @@ real SampleShadowmap(TEXTURE2D_SHADOW_PARAM(ShadowMap, sampler_ShadowMap), float
 	if (isPerspectiveProjection)
 		shadowCoord.xyz /= shadowCoord.w;
 
-	real attenuation;
+	real attenuation=0;
 	real shadowStrength = shadowParams.x;
 
 	// TODO: We could branch on if this light has soft shadows (shadowParams.y) to save perf on some platforms.
 #ifdef _SHADOWS_SOFT
 	attenuation = SampleShadowmapFiltered(TEXTURE2D_SHADOW_ARGS(ShadowMap, sampler_ShadowMap), shadowCoord, samplingData);
-#else
-	// 1-tap hardware comparison
-	attenuation = SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord.xyz);
+//#else
+//	// 1-tap hardware comparison
+//	attenuation = SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord.xyz);
 #endif
 
 	attenuation = LerpWhiteTo(attenuation, shadowStrength);

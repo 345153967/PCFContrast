@@ -17,6 +17,7 @@ Shader "KeywordTest"
             //#pragma multi_compile _ _A
             //#pragma multi_compile _ _B
             #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF _FUCK
+            #pragma multi_compile _ _FEATURE_GATHER4
 
             #include "UnlitInput.hlsl"
             struct Attributes
@@ -43,9 +44,14 @@ Shader "KeywordTest"
                 #elif defined(_UE4Manual2x2PCF)
                     return half4(0,1,0, 1);
                 #elif defined(_UE4Manual3x3PCF)
-                    return half4(0,0,1, 1);
+                    #if defined(_FEATURE_GATHER4)
+                        return half4(1, 1, 0, 1);
+                    #else
+                        return half4(0,0,1, 1);
+                    #endif
                 #elif defined(_FUCK)
                     return half4(0,0,0, 1);
+
                 #else 
                     return half4(0,0,0,1);
                 #endif

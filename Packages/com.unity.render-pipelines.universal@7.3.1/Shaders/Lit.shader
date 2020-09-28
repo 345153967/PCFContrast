@@ -116,16 +116,7 @@ Shader "Universal Render Pipeline/Lit"
             #pragma multi_compile_instancing
 
             //define pcf test
-            #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF _FUCK 
-            //#pragma multi_compile _UnityMobileHardwarePCF _FUCK _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF 
-
-
-            //#pragma multi_compile _ _UnityMobileHardwarePCF 
-            //#pragma multi_compile _ _UnityNotMobilePCF 
-            //#pragma multi_compile _ _UE4Manual2x2PCF 
-            //#pragma multi_compile _ _UE4Manual3x3PCF 
-            //#pragma multi_compile _ _FUCK 
-
+            #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF 
             #pragma multi_compile _ _FEATURE_GATHER4
 
             #pragma vertex LitPassVertex
