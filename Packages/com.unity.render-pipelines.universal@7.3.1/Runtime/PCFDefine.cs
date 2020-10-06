@@ -19,6 +19,8 @@ public class PCFDefine : MonoBehaviour
     public static PCFDefine Instance;
     public PCFType pt;
     private Dropdown dd;
+    public float bias=0;
+    public float offset=0;
     public bool forcePoint=false;
     private void Awake()
     {

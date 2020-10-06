@@ -57,9 +57,9 @@ float4      _CascadeShadowSplitSpheres1;
 float4      _CascadeShadowSplitSpheres2;
 float4      _CascadeShadowSplitSpheres3;
 float4      _CascadeShadowSplitSphereRadii;
-half4       _InvHalfShadowAtlasWidthHeight;
 half4       _MainLightShadowParams;  // (x: shadowStrength, y: 1.0 if soft shadows, 0.0 otherwise)
 float4      _MainLightShadowmapSize; // (xy: 1/width and 1/height, zw: width and height)
+float4		_ShadowBiasCoordoffset;
 
 #if USE_STRUCTURED_BUFFER_FOR_LIGHT_DATA
 StructuredBuffer<ShadowData> _AdditionalShadowsBuffer;
@@ -80,22 +80,21 @@ float4 _ShadowBias; // x: depth bias, y: normal bias
 
 struct ShadowSamplingData
 {
-	half4 _InvHalfShadowAtlasWidthHeight;
 	float4 shadowmapSize;
+	float shadowBiasCoordoffset;
 };
 
 ShadowSamplingData GetMainLightShadowSamplingData()
 {
 	ShadowSamplingData shadowSamplingData;
-	shadowSamplingData._InvHalfShadowAtlasWidthHeight = _InvHalfShadowAtlasWidthHeight;
 	shadowSamplingData.shadowmapSize = _MainLightShadowmapSize;
+	shadowSamplingData.shadowBiasCoordoffset = _ShadowBiasCoordoffset;
 	return shadowSamplingData;
 }
 
 ShadowSamplingData GetAdditionalLightShadowSamplingData()
 {
 	ShadowSamplingData shadowSamplingData;
-	shadowSamplingData._InvHalfShadowAtlasWidthHeight = _InvHalfShadowAtlasWidthHeight;
 	shadowSamplingData.shadowmapSize = _AdditionalShadowmapSize;
 	return shadowSamplingData;
 }
@@ -164,10 +163,10 @@ real UnityNotMobilePCF(Texture2D ShadowMap, SamplerComparisonState sampler_Shado
 //unity移动端4次SampleCmpLevelZero主动采样配合硬件pcf  结果为16个样本
 real4 UnityMobileHardwarePCF(Texture2D ShadowMap, SamplerComparisonState sampler_ShadowMap, real4 shadowCoord, ShadowSamplingData samplingData) {
 	real4 attenuation4;
-	attenuation4.x = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(-1, -1), shadowCoord.z);
-	attenuation4.y = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(1, -1), shadowCoord.z);
-	attenuation4.z = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(-1, 1), shadowCoord.z);
-	attenuation4.w = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(1, 1), shadowCoord.z);
+	attenuation4.x = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData.shadowmapSize.xy *0.5 * real2(-1, -1), shadowCoord.z);
+	attenuation4.y = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData.shadowmapSize.xy *0.5 * real2(1, -1), shadowCoord.z);
+	attenuation4.z = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData.shadowmapSize.xy *0.5 * real2(-1, 1), shadowCoord.z);
+	attenuation4.w = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData.shadowmapSize.xy *0.5 * real2(1, 1), shadowCoord.z);
 
 
 	//ShadowMap.Sample(sampler_ShadowMap, (shadowCoord.xy + real2(0, verticalOffset)) * samplingData.shadowmapSize.xy).r
@@ -176,23 +175,21 @@ real4 UnityMobileHardwarePCF(Texture2D ShadowMap, SamplerComparisonState sampler
 }
 
 
-real3 CalculateOcclusion(real3 ShadowmapDepth, real SceneDepth) {
+real3 CalculateOcclusion(real3 ShadowmapDepth, real SceneDepth,real bias) {
 	//输入的SceneDepth是0-1的,对于dx被reverse z了,近处为1,远处为0,与opengl相反
-	float transitionScale = 4000;
-	#if defined(SHADER_API_MOBILE)
-		return saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
+	#if defined(SHADER_API_D3D11)
+		return 1 - saturate((ShadowmapDepth - SceneDepth+bias) * 1000);
 	#else
-		return 1 - saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
+		return saturate((ShadowmapDepth - SceneDepth+bias) * 1000);
 	#endif
 }
 
-real4 CalculateOcclusion(real4 ShadowmapDepth, real SceneDepth) {
-	float transitionScale = 4000;
-	#if defined(SHADER_API_MOBILE)
-		return saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
-	#else 
-		return 1 - saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
-	#endif
+real4 CalculateOcclusion(real4 ShadowmapDepth, real SceneDepth,real bias) {
+#if defined(SHADER_API_D3D11)
+	return 1 - saturate((ShadowmapDepth - SceneDepth + bias) * 1000);
+#else
+	return saturate((ShadowmapDepth - SceneDepth + bias) * 1000);
+#endif
 }
 
 real3 FetchRowOfThree(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 sampleCenter, real verticalOffset, ShadowSamplingData samplingData, real screenDepth)
@@ -201,7 +198,7 @@ real3 FetchRowOfThree(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2
 	Values.x = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + real2(0, verticalOffset)) * samplingData.shadowmapSize.xy).r;
 	Values.y = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + real2(1, verticalOffset)) * samplingData.shadowmapSize.xy).r;
 	Values.z = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + real2(2, verticalOffset)) * samplingData.shadowmapSize.xy).r;
-	return CalculateOcclusion(Values, screenDepth);
+	return CalculateOcclusion(Values, screenDepth, samplingData.shadowBiasCoordoffset.x);
 }
 
 real4 FetchRowOfFour(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 sampleCenter, real verticalOffset, ShadowSamplingData samplingData, real screenDepth)
@@ -211,7 +208,7 @@ real4 FetchRowOfFour(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 
 	Values.y = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(1, verticalOffset)) * samplingData.shadowmapSize.xy).r;
 	Values.z = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(2, verticalOffset)) * samplingData.shadowmapSize.xy).r;
 	Values.w = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(3, verticalOffset)) * samplingData.shadowmapSize.xy).r;
-	return CalculateOcclusion(Values, screenDepth);
+	return CalculateOcclusion(Values, screenDepth, samplingData.shadowBiasCoordoffset.x);
 }
 
 //UE4 2x2PCF:9次SampleLevel主动采样无硬件pcf配合, 结果为9次样本
@@ -245,10 +242,10 @@ real UE4Manual3x3PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 
 #if defined(_FEATURE_GATHER4)
 	real2 SamplePos = TexelCenter * samplingData.shadowmapSize.xy;	// bias to get reliable texel center content
-	SampleValues0 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, -1)), shadowCoord.z);
-	SampleValues1 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, -1)), shadowCoord.z);
-	SampleValues2 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, 1)), shadowCoord.z);
-	SampleValues3 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, 1)), shadowCoord.z);
+	SampleValues0 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, -1)), shadowCoord.z, samplingData.shadowBiasCoordoffset.x);
+	SampleValues1 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, -1)), shadowCoord.z,samplingData.shadowBiasCoordoffset.x);
+	SampleValues2 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, 1)), shadowCoord.z,samplingData.shadowBiasCoordoffset.x);
+	SampleValues3 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, 1)), shadowCoord.z ,samplingData.shadowBiasCoordoffset.x);
 
 	real4 results;
 	results.x = SampleValues0.w * (1.0 - Fraction.x) + SampleValues0.z + SampleValues1.w + SampleValues1.z * Fraction.x;

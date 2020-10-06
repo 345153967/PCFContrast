@@ -36,6 +36,7 @@ public class SimpleCameraController : MonoBehaviour
             if (shadowResolutionToggle.isOn) urpSetting.mainLightShadowmapResolution = 4096;
             else urpSetting.mainLightShadowmapResolution = 2048;
         });
+
     }
 
     public void ChangeTrans()

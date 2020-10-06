@@ -16,8 +16,8 @@ namespace UnityEngine.Rendering.Universal.Internal
             public static int _CascadeShadowSplitSpheres2;
             public static int _CascadeShadowSplitSpheres3;
             public static int _CascadeShadowSplitSphereRadii;
-            public static int _InvHalfShadowAtlasWidthHeight;
             public static int _ShadowmapSize;
+            public static int _ShadowBiasCoordoffset;
         }
 
         const int k_MaxCascades = 4;
@@ -54,8 +54,8 @@ namespace UnityEngine.Rendering.Universal.Internal
             MainLightShadowConstantBuffer._CascadeShadowSplitSpheres2 = Shader.PropertyToID("_CascadeShadowSplitSpheres2");
             MainLightShadowConstantBuffer._CascadeShadowSplitSpheres3 = Shader.PropertyToID("_CascadeShadowSplitSpheres3");
             MainLightShadowConstantBuffer._CascadeShadowSplitSphereRadii = Shader.PropertyToID("_CascadeShadowSplitSphereRadii");
-            MainLightShadowConstantBuffer._InvHalfShadowAtlasWidthHeight = Shader.PropertyToID("_InvHalfShadowAtlasWidthHeight");
             MainLightShadowConstantBuffer._ShadowmapSize = Shader.PropertyToID("_MainLightShadowmapSize");
+            MainLightShadowConstantBuffer._ShadowBiasCoordoffset = Shader.PropertyToID("_ShadowBiasCoordoffset");
 
             m_MainLightShadowmap.Init("_MainLightShadowmapTexture");
             m_SupportsBoxFilterForShadows = Application.isMobilePlatform || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Switch;
@@ -230,10 +230,8 @@ namespace UnityEngine.Rendering.Universal.Internal
 
             if (softShadows)
             {
-                cmd.SetGlobalVector(MainLightShadowConstantBuffer._InvHalfShadowAtlasWidthHeight, new Vector4(invHalfShadowAtlasWidth, invHalfShadowAtlasHeight, 0.0f, 0.0f));
-                cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowmapSize, new Vector4(invShadowAtlasWidth,
-                    invShadowAtlasHeight,
-                    m_ShadowmapWidth, m_ShadowmapHeight));
+                cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowBiasCoordoffset,new Vector4(test_pcfDefine.bias,test_pcfDefine.offset,0,0 ));
+                cmd.SetGlobalVector(MainLightShadowConstantBuffer._ShadowmapSize, new Vector4(invShadowAtlasWidth,invShadowAtlasHeight,m_ShadowmapWidth, m_ShadowmapHeight));
             }
         }
     };
