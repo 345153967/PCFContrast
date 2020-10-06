@@ -169,6 +169,9 @@ real4 UnityMobileHardwarePCF(Texture2D ShadowMap, SamplerComparisonState sampler
 	attenuation4.z = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(-1, 1), shadowCoord.z);
 	attenuation4.w = ShadowMap.SampleCmpLevelZero(sampler_ShadowMap, shadowCoord.xy + samplingData._InvHalfShadowAtlasWidthHeight.xy * real2(1, 1), shadowCoord.z);
 
+
+	//ShadowMap.Sample(sampler_ShadowMap, (shadowCoord.xy + real2(0, verticalOffset)) * samplingData.shadowmapSize.xy).r
+
 	return attenuation4;
 }
 
@@ -195,19 +198,19 @@ real4 CalculateOcclusion(real4 ShadowmapDepth, real SceneDepth) {
 real3 FetchRowOfThree(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 sampleCenter, real verticalOffset, ShadowSamplingData samplingData, real screenDepth)
 {
 	real3 Values;
-	Values.x = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + real2(0, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
-	Values.y = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + real2(1, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
-	Values.z = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + real2(2, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
+	Values.x = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + real2(0, verticalOffset)) * samplingData.shadowmapSize.xy).r;
+	Values.y = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + real2(1, verticalOffset)) * samplingData.shadowmapSize.xy).r;
+	Values.z = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + real2(2, verticalOffset)) * samplingData.shadowmapSize.xy).r;
 	return CalculateOcclusion(Values, screenDepth);
 }
 
 real4 FetchRowOfFour(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 sampleCenter, real verticalOffset, ShadowSamplingData samplingData, real screenDepth)
 {
 	real4 Values;
-	Values.x = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + float2(0, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
-	Values.y = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + float2(1, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
-	Values.z = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + float2(2, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
-	Values.w = ShadowMap.SampleLevel(sampler_ShadowMap, (sampleCenter + float2(3, verticalOffset)) * samplingData.shadowmapSize.xy, 0).r;
+	Values.x = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(0, verticalOffset)) * samplingData.shadowmapSize.xy).r;
+	Values.y = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(1, verticalOffset)) * samplingData.shadowmapSize.xy).r;
+	Values.z = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(2, verticalOffset)) * samplingData.shadowmapSize.xy).r;
+	Values.w = ShadowMap.Sample(sampler_ShadowMap, (sampleCenter + float2(3, verticalOffset)) * samplingData.shadowmapSize.xy).r;
 	return CalculateOcclusion(Values, screenDepth);
 }
 

@@ -29,6 +29,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
         RenderTargetHandle m_MainLightShadowmap;
         RenderTexture m_MainLightShadowmapTexture;
+        PCFDefine test_pcfDefine;
 
         Matrix4x4[] m_MainLightShadowMatrices;
         ShadowSliceData[] m_CascadeSlices;
@@ -39,6 +40,7 @@ namespace UnityEngine.Rendering.Universal.Internal
 
         public MainLightShadowCasterPass(RenderPassEvent evt)
         {
+            test_pcfDefine = PCFDefine.Instance;
             renderPassEvent = evt;
 
             m_MainLightShadowMatrices = new Matrix4x4[k_MaxCascades + 1];
@@ -109,6 +111,8 @@ namespace UnityEngine.Rendering.Universal.Internal
         {
             m_MainLightShadowmapTexture = ShadowUtils.GetTemporaryShadowTexture(m_ShadowmapWidth,
                     m_ShadowmapHeight, k_ShadowmapBufferBits);
+            if (test_pcfDefine && (test_pcfDefine.forcePoint|| test_pcfDefine.pt == PCFType.UE4Manual2x2PCF || test_pcfDefine.pt == PCFType.UE4Manual3x3PCF_NoGather))
+                m_MainLightShadowmapTexture.filterMode = FilterMode.Point;
             ConfigureTarget(new RenderTargetIdentifier(m_MainLightShadowmapTexture));
             ConfigureClear(ClearFlag.All, Color.black);
         }
