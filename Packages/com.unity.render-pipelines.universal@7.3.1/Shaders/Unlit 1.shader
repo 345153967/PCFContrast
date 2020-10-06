@@ -2,7 +2,8 @@ Shader "KeywordTest"
 {
     Properties
     {
-
+        _TestTex("TestTex",2D) = "white"{}
+        _NormalTex("NormalTex",2D) = "white"{}
     }
     SubShader
     {
@@ -12,12 +13,6 @@ Shader "KeywordTest"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            //#pragma multi_compile _InnerMacro1 _InnerMacro2 _InnerMacro3
-            ////#pragma multi_compile _A _B 
-            //#pragma multi_compile _ _A
-            //#pragma multi_compile _ _B
-            #pragma multi_compile _UnityMobileHardwarePCF _UnityNotMobilePCF _UE4Manual2x2PCF _UE4Manual3x3PCF _FUCK
-            #pragma multi_compile _ _FEATURE_GATHER4
 
             #include "UnlitInput.hlsl"
             struct Attributes
@@ -35,26 +30,15 @@ Shader "KeywordTest"
                 output.vertex = vertexInput.positionCS;
                 return output;
             }
-            half4 frag(Varyings input) : SV_Target
-            {
-                #if defined(_UnityMobileHardwarePCF)               
-                    return half4(1,1,1,1);
-                #elif defined(_UnityNotMobilePCF)
-                    return half4(1,0,0, 1);
-                #elif defined(_UE4Manual2x2PCF)
-                    return half4(0,1,0, 1);
-                #elif defined(_UE4Manual3x3PCF)
-                    #if defined(_FEATURE_GATHER4)
-                        return half4(1, 1, 0, 1);
-                    #else
-                        return half4(0,0,1, 1);
-                    #endif
-                #elif defined(_FUCK)
-                    return half4(0,0,0, 1);
 
-                #else 
-                    return half4(0,0,0,1);
-                #endif
+            Texture2D _TestTex;
+            SamplerComparisonState sampler_TestTex;            
+            
+            Texture2D _NormalTex;
+            SamplerState sampler_NormalTex;
+            half4 frag(Varyings input) : SV_Target
+            {           
+                return _TestTex.SampleCmpLevelZero(sampler_TestTex,float2(1,1),1)+ _NormalTex.Sample(sampler_NormalTex,float2(1,1),1);
             }
             ENDHLSL
         }

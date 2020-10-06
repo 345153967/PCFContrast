@@ -8,6 +8,6 @@ ShaderVariantCollection:
   m_PrefabAsset: {fileID: 0}
   m_Name: NewShaderVariants
   m_Shaders:
-  - first: {fileID: 4800000, guid: 06857dedd44d0454ca9087257c8d44eb, type: 3}
+  - first: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
     second:
       variants: []

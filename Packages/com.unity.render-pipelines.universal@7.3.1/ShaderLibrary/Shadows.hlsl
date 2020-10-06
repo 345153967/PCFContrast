@@ -174,23 +174,22 @@ real4 UnityMobileHardwarePCF(Texture2D ShadowMap, SamplerComparisonState sampler
 
 
 real3 CalculateOcclusion(real3 ShadowmapDepth, real SceneDepth) {
-	//the standard comparison is SceneDepth<ShadowmapDepth
-	//using a soft transition based on depth difference
-	//offsets shadows a bit but reduces self shadowing artifacts considerably
+	//输入的SceneDepth是0-1的,对于dx被reverse z了,近处为1,远处为0,与opengl相反
 	float transitionScale = 4000;
-
-	//unoptimized math:saturate(ShadowmapDepth- SceneDepth)*transitionScale+1);
-	//rearranged the math so that per pixel constants can be optimized from per sample constants
-	float constantFactor = SceneDepth * transitionScale - 1;
-	float3 ShadowFactor = saturate(ShadowmapDepth * transitionScale - constantFactor);
-	return ShadowFactor;
+	#if defined(SHADER_API_MOBILE)
+		return saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
+	#else
+		return 1 - saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
+	#endif
 }
 
 real4 CalculateOcclusion(real4 ShadowmapDepth, real SceneDepth) {
-	real transitionScale = 4000;
-	real constantFactor = SceneDepth * transitionScale - 1;
-	real4 ShadowFactor = saturate(ShadowmapDepth * transitionScale - constantFactor);
-	return ShadowFactor;
+	float transitionScale = 4000;
+	#if defined(SHADER_API_MOBILE)
+		return saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
+	#else 
+		return 1 - saturate((ShadowmapDepth - SceneDepth) * transitionScale + 1);
+	#endif
 }
 
 real3 FetchRowOfThree(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real2 sampleCenter, real verticalOffset, ShadowSamplingData samplingData, real screenDepth)
@@ -218,16 +217,15 @@ real UE4Manual2x2PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 	real2 Fraction = frac(TexelPos);
 	real2 TexelCenter = floor(TexelPos) + 0.5f;
 	real2 SampleCenter = TexelCenter - real2(1, 1);
-
 	real3 SamplesValues0 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
 	real3 SamplesValues1 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
 	real3 SamplesValues2 = FetchRowOfThree(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
- 
+
 	real3 results;
 	results.x = SamplesValues0.x * (1 - Fraction.x) + SamplesValues0.y + SamplesValues1.z * Fraction.x;
 	results.y = SamplesValues1.x * (1 - Fraction.x) + SamplesValues1.y + SamplesValues1.z * Fraction.x;
 	results.z = SamplesValues1.x * (1 - Fraction.x) + SamplesValues1.y + SamplesValues1.z * Fraction.x;
-	return 1 - saturate(0.25f * dot(results, real3(1.0f - Fraction.y, 1.0f, Fraction.y)));
+	return saturate(0.25f * dot(results, real3(1.0f - Fraction.y, 1.0f, Fraction.y)));
 }
 
 //UE4 3x3PCF:分为gather与非gather两部分
@@ -243,48 +241,48 @@ real UE4Manual3x3PCF(Texture2D ShadowMap, SamplerState sampler_ShadowMap, real4 
 	real4 SampleValues0, SampleValues1, SampleValues2, SampleValues3;
 
 #if defined(_FEATURE_GATHER4)
-		real2 SamplePos = TexelCenter * samplingData.shadowmapSize.xy;	// bias to get reliable texel center content
-		SampleValues0 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, -1)), shadowCoord.z);
-		SampleValues1 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, -1)), shadowCoord.z);
-		SampleValues2 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, 1)), shadowCoord.z);
-		SampleValues3 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, 1)), shadowCoord.z);
+	real2 SamplePos = TexelCenter * samplingData.shadowmapSize.xy;	// bias to get reliable texel center content
+	SampleValues0 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, -1)), shadowCoord.z);
+	SampleValues1 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, -1)), shadowCoord.z);
+	SampleValues2 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(-1, 1)), shadowCoord.z);
+	SampleValues3 = CalculateOcclusion(ShadowMap.Gather(sampler_ShadowMap, SamplePos, int2(1, 1)), shadowCoord.z);
 
-		real4 results;
-		results.x = SampleValues0.w * (1.0 - Fraction.x) + SampleValues0.z + SampleValues1.w + SampleValues1.z * Fraction.x;
-		results.y = SampleValues0.x * (1.0 - Fraction.x) + SampleValues0.y + SampleValues1.x + SampleValues1.y * Fraction.x;
-		results.z = SampleValues2.w * (1.0 - Fraction.x) + SampleValues2.z + SampleValues3.w + SampleValues3.z * Fraction.x;
-		results.w = SampleValues2.x * (1.0 - Fraction.x) + SampleValues2.y + SampleValues3.x + SampleValues3.y * Fraction.x;
-		return 1 - dot(results, real4(1.0 - Fraction.y, 1.0, 1.0, Fraction.y) * (1.0 / 9.0));
+	real4 results;
+	results.x = SampleValues0.w * (1.0 - Fraction.x) + SampleValues0.z + SampleValues1.w + SampleValues1.z * Fraction.x;
+	results.y = SampleValues0.x * (1.0 - Fraction.x) + SampleValues0.y + SampleValues1.x + SampleValues1.y * Fraction.x;
+	results.z = SampleValues2.w * (1.0 - Fraction.x) + SampleValues2.z + SampleValues3.w + SampleValues3.z * Fraction.x;
+	results.w = SampleValues2.x * (1.0 - Fraction.x) + SampleValues2.y + SampleValues3.x + SampleValues3.y * Fraction.x;
+	return saturate(dot(results, real4(1.0 - Fraction.y, 1.0, 1.0, Fraction.y) * (1.0 / 9.0)));
 #else
-		SampleValues0 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
-		SampleValues1 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
-		SampleValues2 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
-		SampleValues3 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 3, samplingData, shadowCoord.z);
+	SampleValues0 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 0, samplingData, shadowCoord.z);
+	SampleValues1 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 1, samplingData, shadowCoord.z);
+	SampleValues2 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 2, samplingData, shadowCoord.z);
+	SampleValues3 = FetchRowOfFour(ShadowMap, sampler_ShadowMap, SampleCenter, 3, samplingData, shadowCoord.z);
 
-		real4 results;
-		results.x = SampleValues0.x * (1.0f - Fraction.x) + SampleValues0.y + SampleValues0.z + SampleValues0.w * Fraction.x;
-		results.y = SampleValues1.x * (1.0f - Fraction.x) + SampleValues1.y + SampleValues1.z + SampleValues1.w * Fraction.x;
-		results.z = SampleValues2.x * (1.0f - Fraction.x) + SampleValues2.y + SampleValues2.z + SampleValues2.w * Fraction.x;
-		results.w = SampleValues3.x * (1.0f - Fraction.x) + SampleValues3.y + SampleValues3.z + SampleValues3.w * Fraction.x;
-		return 1 - (saturate(dot(results, real4(1.0f - Fraction.y, 1.0f, 1.0f, Fraction.y))* (1.0f / 9.0f)));
+	real4 results;
+	results.x = SampleValues0.x * (1.0f - Fraction.x) + SampleValues0.y + SampleValues0.z + SampleValues0.w * Fraction.x;
+	results.y = SampleValues1.x * (1.0f - Fraction.x) + SampleValues1.y + SampleValues1.z + SampleValues1.w * Fraction.x;
+	results.z = SampleValues2.x * (1.0f - Fraction.x) + SampleValues2.y + SampleValues2.z + SampleValues2.w * Fraction.x;
+	results.w = SampleValues3.x * (1.0f - Fraction.x) + SampleValues3.y + SampleValues3.z + SampleValues3.w * Fraction.x;
+	return (saturate(dot(results, real4(1.0f - Fraction.y, 1.0f, 1.0f, Fraction.y)) * (1.0f / 9.0f)));
 #endif
 }
 
 real DoPCF(TEXTURE2D_SHADOW_PARAM(ShadowMap, sampler_ShadowMap), float4 shadowCoord, ShadowSamplingData samplingData) {
 	real attenuation = 0;
-	#if defined(_UnityNotMobilePCF)
-		attenuation = UnityNotMobilePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
-	#elif defined(_UnityMobileHardwarePCF)
-		attenuation = dot(UnityMobileHardwarePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData), 0.25);
-	#elif defined(_UE4Manual2x2PCF)
-		attenuation = UE4Manual2x2PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
-	#elif defined(_UE4Manual3x3PCF)
-		attenuation = UE4Manual3x3PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
-	#elif defined(_FUCK)
-		attenuation = 0;
-	#else
-		attenuation = 10000;
-	#endif
+#if defined(_UnityNotMobilePCF)
+	attenuation = UnityNotMobilePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
+#elif defined(_UnityMobileHardwarePCF)
+	attenuation = dot(UnityMobileHardwarePCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData), 0.25);
+#elif defined(_UE4Manual2x2PCF)
+	attenuation = UE4Manual2x2PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
+#elif defined(_UE4Manual3x3PCF)
+	attenuation = UE4Manual3x3PCF(ShadowMap, sampler_ShadowMap, shadowCoord, samplingData);
+#elif defined(_FUCK)
+	attenuation = 0;
+#else
+	attenuation = 10000;
+#endif
 	return attenuation;
 }
 //pcf test end
@@ -344,15 +342,15 @@ real SampleShadowmap(TEXTURE2D_SHADOW_PARAM(ShadowMap, sampler_ShadowMap), float
 	if (isPerspectiveProjection)
 		shadowCoord.xyz /= shadowCoord.w;
 
-	real attenuation=0;
+	real attenuation = 0;
 	real shadowStrength = shadowParams.x;
 
 	// TODO: We could branch on if this light has soft shadows (shadowParams.y) to save perf on some platforms.
 #ifdef _SHADOWS_SOFT
 	attenuation = SampleShadowmapFiltered(TEXTURE2D_SHADOW_ARGS(ShadowMap, sampler_ShadowMap), shadowCoord, samplingData);
-//#else
-//	// 1-tap hardware comparison
-//	attenuation = SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord.xyz);
+	//#else
+	//	// 1-tap hardware comparison
+	//	attenuation = SAMPLE_TEXTURE2D_SHADOW(ShadowMap, sampler_ShadowMap, shadowCoord.xyz);
 #endif
 
 	attenuation = LerpWhiteTo(attenuation, shadowStrength);
@@ -387,7 +385,7 @@ float4 TransformWorldToShadowCoord(float3 positionWS)
 	return mul(_MainLightWorldToShadow[cascadeIndex], float4(positionWS, 1.0));
 }
 
-half MainLightRealtimeShadow(float4 shadowCoord)
+half MainLightRealtimeShadow(float4 shadowCoord)  
 {
 #if !defined(MAIN_LIGHT_CALCULATE_SHADOWS)
 	return 1.0h;

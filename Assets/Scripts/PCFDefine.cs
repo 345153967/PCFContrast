@@ -1,6 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum PCFType
 {
@@ -11,12 +13,23 @@ public enum PCFType
     UE4Manual3x3PCF_Gather,
 }
 
-[ExecuteInEditMode]
+//[ExecuteInEditMode]
 public class PCFDefine : MonoBehaviour
 {
-    public PCFType pcftype;
-
-    void Update()
+    private Dropdown dd;
+    private void Awake()
+    {
+        dd = GetComponent<Dropdown>();
+        List<string> pcfList = new List<string>();
+        foreach (PCFType t in Enum.GetValues(typeof(PCFType)))
+            pcfList.Add(t.ToString());
+        dd.AddOptions(pcfList);
+        dd.onValueChanged.AddListener(delegate
+        {
+            SwitchType((PCFType)dd.value);
+        });
+    }
+    void SwitchType(PCFType pt)
     {
         Shader.DisableKeyword("_UnityMobileHardwarePCF");
         Shader.DisableKeyword("_UnityNotMobilePCF");
@@ -24,7 +37,7 @@ public class PCFDefine : MonoBehaviour
         Shader.DisableKeyword("_UE4Manual3x3PCF");
         Shader.DisableKeyword("_FEATURE_GATHER4");
 
-        switch (pcftype)
+        switch (pt)
         {
             case PCFType.UnityNotMobilePCF:
                 Shader.EnableKeyword("_UnityNotMobilePCF");
