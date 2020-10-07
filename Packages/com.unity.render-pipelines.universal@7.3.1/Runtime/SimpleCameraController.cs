@@ -11,33 +11,13 @@ using UnityEngine.UI;
 
 public class SimpleCameraController : MonoBehaviour
 {
-    public UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset urpSetting;
-    public Slider slider;
-    public Text sliderTxt;
-    public Toggle shadowResolutionToggle;
+    private bool useFirst;
 
     public Vector3 Pos1;
     public Vector3 Rot1;
 
     public Vector3 Pos2;
     public Vector3 Rot2;
-
-    private bool useFirst;
-
-    private void Awake()
-    {
-        slider.onValueChanged.AddListener(delegate
-        {
-            sliderTxt.text = Mathf.Floor(slider.value).ToString();
-            urpSetting.shadowDistance = slider.value;
-        });
-        shadowResolutionToggle.onValueChanged.AddListener(delegate
-        {
-            if (shadowResolutionToggle.isOn) urpSetting.mainLightShadowmapResolution = 4096;
-            else urpSetting.mainLightShadowmapResolution = 2048;
-        });
-
-    }
 
     public void ChangeTrans()
     {
@@ -52,9 +32,5 @@ public class SimpleCameraController : MonoBehaviour
             transform.localEulerAngles = Rot2;
         }
         useFirst = !useFirst;
-    }
-    private void OnDestroy()
-    {
-        urpSetting.shadowDistance = 50;
     }
 }
